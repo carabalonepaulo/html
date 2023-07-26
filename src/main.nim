@@ -164,6 +164,16 @@ macro el(tag: string, args: varargs[untyped]): Node =
       tree.add(newAddCall("attrs", node))
     of nnkStmtListExpr:
       tree.add(newAddCall("children", node))
+    of nnkIfExpr:
+      var newIfExpr = nnkIfExpr.newTree()
+      for branch in node.children:
+        case branch.kind:
+        of nnkElifExpr:
+          newIfExpr.add(branch.kind.newTree(branch[0], wrap(branch[1])))
+        of nnkElse:
+          newIfExpr.add(nnkElse.newTree(wrap(branch[0])))
+        else: error("Only nnkElifBranch and nnkElse allowed.")
+      tree.add(newIfExpr)
     else:
       echo node.kind
 
@@ -230,7 +240,7 @@ let htmlDoc = doc:
     a(href="https://google.com")
   body:
     span("hello"):
-      span("world")
+      span("worl", b("d"), if true: ("attr", "value"))
 
 echo htmlDoc.toHtml()
 
