@@ -130,7 +130,7 @@ macro el(tag: string, args: varargs[untyped]): Node =
 
   proc handleAnyNode(tree: var NimNode, node: NimNode) =
     case node.kind:
-    of nnkCall:
+    of nnkCall, nnkStmtListExpr:
       tree.add(newAddCall("children", node))
     of nnkForStmt:
       var forStmt = nnkForStmt.newTree()
@@ -138,42 +138,24 @@ macro el(tag: string, args: varargs[untyped]): Node =
         forStmt.add(node[i])
       forStmt.add(wrap(node.last))
       tree.add(forStmt)
-    of nnkStrLit:
+    of nnkStrLit, nnkInfix:
       tree.add(newAddCall("children", newCall("initText", node)))
     of nnkStmtList:
       for child in node.children:
         handleAnyNode(tree, child)
-    of nnkExprEqExpr:
+    of nnkExprEqExpr, nnkAsgn:
       tree.add(newAddCall("attrs", nnkTupleConstr.newTree(newStrLitNode(node[0].strVal), newStrLitNode(node[1].strVal))))
-    of nnkAsgn:
-      tree.add(newAddCall("attrs", nnkTupleConstr.newTree(newStrLitNode(node[0].strVal), newStrLitNode(node[1].strVal))))
-    of nnkInfix:
-      tree.add(newAddCall("children", newCall("initText", node)))
-    of nnkIfStmt:
-      var newIfStmt = nnkIfStmt.newTree()
-      for branch in node.children:
-        case branch.kind:
-        of nnkElifBranch:
-          newIfStmt.add(branch.kind.newTree(branch[0], wrap(branch[1])))
-        of nnkElse:
-          newIfStmt.add(nnkElse.newTree(wrap(branch[0])))
-        else: error("Only nnkElifBranch and nnkElse allowed.")
-      tree.add(newIfStmt)
     of nnkTupleConstr:
       assert node.len == 2, "Invalid custom attribute constructor."
       tree.add(newAddCall("attrs", node))
-    of nnkStmtListExpr:
-      tree.add(newAddCall("children", node))
-    of nnkIfExpr:
-      var newIfExpr = nnkIfExpr.newTree()
+    of nnkIfStmt, nnkIfExpr:
+      var newNode = node.kind.newTree()
       for branch in node.children:
-        case branch.kind:
-        of nnkElifExpr:
-          newIfExpr.add(branch.kind.newTree(branch[0], wrap(branch[1])))
-        of nnkElse:
-          newIfExpr.add(nnkElse.newTree(wrap(branch[0])))
-        else: error("Only nnkElifBranch and nnkElse allowed.")
-      tree.add(newIfExpr)
+        if branch.kind == nnkElse:
+          newNode.add(nnkElse.newTree(wrap(branch[0])))
+        else:
+          newNode.add(branch.kind.newTree(branch[0], wrap(branch[1])))
+      tree.add(newNode)
     else:
       echo node.kind
 
@@ -234,13 +216,15 @@ macro createDefaultMacros(): untyped =
 
 createDefaultMacros()
 
+template hello(name: string): Node = span("hello " & name)
 
 let htmlDoc = doc:
   head:
     a(href="https://google.com")
   body:
     span("hello"):
-      span("worl", b("d"), if true: ("attr", "value"))
+      for i in 0..3:
+        span("worl", b("d"), if i mod 2 == 0: ("attr", "value"), hello("paulo"))
 
 echo htmlDoc.toHtml()
 
