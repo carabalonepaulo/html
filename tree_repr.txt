@@ -1,0 +1,64 @@
+StmtList
+  Command
+    Ident "doctype"
+    StrLit "html"
+  Call
+    Ident "head"
+    StmtList
+      Call
+        Ident "meta"
+        ExprEqExpr
+          Ident "charset"
+          StrLit "UTF-8"
+      Call
+        Ident "meta"
+        ExprEqExpr
+          Ident "name"
+          StrLit "viewport"
+        ExprEqExpr
+          Ident "content"
+          StrLit "width=device-width, initial-scale=1.0"
+      Call
+        Ident "title"
+        StrLit "Hello World!"
+  Call
+    Ident "body"
+    ExprEqExpr
+      Ident "class"
+      StrLit "hello world"
+    StmtList
+      Call
+        Ident "el"
+        ExprEqExpr
+          Infix
+            Ident "-"
+            Ident "attr"
+            Ident "a"
+          StrLit ""
+        Call
+          Ident "firstEl"
+        ExprEqExpr
+          Infix
+            Ident "-"
+            Ident "attr"
+            Ident "b"
+          StrLit ""
+        StmtList
+          Call
+            Ident "secondEl"
+          Call
+            Ident "el"
+            StmtList
+              ForStmt
+                Ident "i"
+                Infix
+                  Ident "..."
+                  IntLit 1
+                  IntLit 5
+                StmtList
+                  Call
+                    Ident "span"
+                    StrLit "wtf?"
+                    Prefix
+                      Ident "@"
+                      Ident "i"
