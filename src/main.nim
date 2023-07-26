@@ -1,4 +1,4 @@
-import std/[macros, options, strutils]
+import std/[macros, options, strutils, streams]
 
 
 type
@@ -28,7 +28,48 @@ proc initText*(value: string): Node =
   result = Node(kind: NodeKind.ekText, text: value)
 
 
-proc toHtml*(self: Node, tabSize = 4, currentIdent = 0): string =
+proc write(stream: Stream, self: Node, tabSize = 4, currentIdent = 0) =
+  case self.kind:
+  of NodeKind.ekText:
+    stream.write(self.text)
+  of NodeKind.ekElement:
+    let padding = ' '.repeat(tabSize * currentIdent)
+    let textOnly = (self.children.len == 1 and self.children[0].kind == ekText)
+
+    stream.write(padding)
+    stream.write '<'
+    stream.write(self.tag)
+    if self.attrs.len > 0:
+      stream.write ' '
+    for i in 0..<self.attrs.len:
+      if i > 0:
+        stream.write ' '
+      stream.write self.attrs[i].key
+      stream.write '='
+      stream.write '"'
+      stream.write self.attrs[i].value
+      stream.write '"'
+    stream.write '>'
+
+    if self.children.len > 0 and not textOnly:
+      stream.write('\n')
+    if textOnly:
+      stream.write(self.children[0].text)
+    else:
+      for child in self.children:
+        if child.kind == ekText:
+          stream.write(' '.repeat(tabSize * (currentIdent + 1)))
+          stream.write(child.text)
+          stream.write '\n'
+        else:
+          stream.write(child, tabSize, currentIdent + 1)
+
+    if self.children.len > 0 and not textOnly:
+      stream.write(padding)
+    stream.write("</" & self.tag & ">\n")
+
+
+proc toPrettyHtml*(self: Node, tabSize = 4, currentIdent = 0): string =
   case self.kind:
   of NodeKind.ekText:
     result = self.text
@@ -62,19 +103,28 @@ proc toHtml*(self: Node, tabSize = 4, currentIdent = 0): string =
           result.add(child.text)
           result.add '\n'
         else:
-          result.add(child.toHtml(tabSize, currentIdent + 1))
+          result.add(child.toPrettyHtml(tabSize, currentIdent + 1))
 
     if self.children.len > 0 and not textOnly:
       result.add(padding)
     result.add("</" & self.tag & ">\n")
 
 
-proc toHtml*(self: Doc): string =
+proc write*(stream: Stream, self: Doc) =
+  stream.write("<!doctype html>")
+  let asNode = cast[Node](self)
+  if asNode.children.len > 0:
+    stream.write '\n'
+  # asNode.writeTo(stream)
+  stream.write(asNode)
+
+
+proc toPrettyHtml*(self: Doc): string =
   result.add("<!doctype html>")
   let asNode = cast[Node](self)
   if asNode.children.len > 0:
     result.add '\n'
-  result.add(asNode.toHtml())
+  result.add(asNode.toPrettyHtml())
 
 
 #
@@ -220,47 +270,19 @@ template hello(name: string): Node = span("hello " & name)
 
 let htmlDoc = doc:
   head:
+    meta(charset="UTF-8")
+    meta(name="viewport", content="width=device-width, initial-scale=1.0")
+    title("Hello World!")
     a(href="https://google.com")
   body:
     span("hello"):
       for i in 0..3:
         span("worl", b("d"), if i mod 2 == 0: ("attr", "value"), hello("paulo"))
 
-echo htmlDoc.toHtml()
+echo htmlDoc.toPrettyHtml()
+var buff = newStringOfCap(1024)
+var stream = newStringStream(buff)
+stream.write(htmlDoc)
+stream.flush()
 
-
-# proc hello(name: string): Node =
-#   el("span", "hello " & name)
-
-# let node = el("div", class = "hello world", "text value"):
-#   for i in 0..<3:
-#     el("div", "hello")
-#     if true:
-#       el("a", href = "hello"):
-#         ("attr-a", "value-a")
-#     else:
-#       el("b", ("hx-swap", "innerHTML"), "text inside node")
-#     hello("paulo")
-
-# let html = node.toHtml()
-# echo sizeof(html)
-# echo html.len
-
-# echo node.tag
-# echo node.attrs.len
-# echo node.children.len
-
-
-# discard el:
-#   head:
-#     meta(charset="UTF-8")
-#     meta(name="viewport", content="width=device-width, initial-scale=1.0")
-#     title("Hello World!")
-
-#   body(class="hello world"):
-#     ""
-#     el(attr-a="", firstEl(), attr-b=""):
-#       secondEl()
-#       el:
-#         for i in 1...5:
-#           span("wtf?", @i)
+echo stream.readAll()
