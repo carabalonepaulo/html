@@ -1,6 +1,9 @@
 import std/[macros, options, strutils, streams]
 
 
+const DefaultBufferSize = 2048
+
+
 type
   Attribute* = tuple[key: string, value: string]
 
@@ -52,7 +55,7 @@ proc write*(stream: Stream, self: Element, pretty = false, tabSize = 4, currentI
       stream.write '"'
     stream.write '>'
     
-    if self.tag == "meta":
+    if self.tag == "meta" or self.tag == "link":
       if pretty:
         stream.write '\n'
       return
@@ -87,6 +90,24 @@ proc write*(stream: Stream, self: Doc, pretty = false) =
   stream.write(asNode, pretty)
 
 
+converter toString*(el: Element): string =
+  var buff = newStringOfCap(DefaultBufferSize)
+  var stream = newStringStream(buff)
+  stream.write(el, false)
+  stream.flush()
+  stream.setPosition(0)
+  result = stream.readAll()
+
+
+converter toString*(doc: Doc): string =
+  var buff = newStringOfCap(DefaultBufferSize)
+  var stream = newStringStream(buff)
+  stream.write(doc, false)
+  stream.flush()
+  stream.setPosition(0)
+  result = stream.readAll()
+
+
 macro el*(tag: string, args: varargs[untyped]): Element =
   var rootStmtList = nnkStmtList.newTree(nnkVarSection.newTree(
     nnkIdentDefs.newTree(
@@ -113,7 +134,7 @@ macro el*(tag: string, args: varargs[untyped]): Element =
 
   proc handleAnyNode(tree: var NimNode, node: NimNode) =
     case node.kind:
-    of nnkCall, nnkStmtListExpr:
+    of nnkCall, nnkStmtListExpr, nnkBlockExpr:
       tree.add(newAddCall("children", node))
     of nnkForStmt:
       var forStmt = nnkForStmt.newTree()
