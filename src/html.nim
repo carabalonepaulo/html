@@ -155,7 +155,7 @@ template html*(args: varargs[untyped]): Doc =
 
 macro createTagMacros(): untyped =
   let tags = @[
-    "html", "head", "title", "base", "link", "meta", "style",
+    "head", "title", "base", "link", "meta", "style",
     "script", "noscript",
     "body", "section", "nav", "article", "aside",
     "h1", "h2", "h3", "h4", "h5", "h6", "hgroup",
