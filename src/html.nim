@@ -28,7 +28,7 @@ proc initText*(value: string): Element =
   result = Element(kind: ElementKind.ekText, text: value)
 
 
-proc write(stream: Stream, self: Element, pretty = false, tabSize = 4, currentIdent = 0) =
+proc write*(stream: Stream, self: Element, pretty = false, tabSize = 4, currentIdent = 0) =
   case self.kind:
   of ElementKind.ekText:
     stream.write(self.text)
@@ -87,7 +87,7 @@ proc write*(stream: Stream, self: Doc, pretty = false) =
   stream.write(asNode, pretty)
 
 
-macro el(tag: string, args: varargs[untyped]): Element =
+macro el*(tag: string, args: varargs[untyped]): Element =
   var rootStmtList = nnkStmtList.newTree(nnkVarSection.newTree(
     nnkIdentDefs.newTree(
       newIdentNode("node"),
@@ -149,7 +149,7 @@ macro el(tag: string, args: varargs[untyped]): Element =
   result = newBlockStmt(rootStmtList)
 
 
-template doc*(args: varargs[untyped]): Doc =
+template html*(args: varargs[untyped]): Doc =
   Doc(el("html", args))
 
 
