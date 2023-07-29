@@ -8,7 +8,7 @@ you wish.
 
 - Anything inside parenthesis is evaluated as Element.
 - Tuples with 2 items, being both strings is evaluated as Attribute.
-- Ident is evaluated to an empty attribute
+- Invalid ident is evaluated to an empty attribute
   `el("option", selected) == <option selected>`
 
 ### Examples
