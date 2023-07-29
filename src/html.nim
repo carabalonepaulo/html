@@ -152,21 +152,9 @@ macro el*(tag: string, args: varargs[untyped]): Element =
         forStmt.add(node[i])
       forStmt.add(wrap(node.last))
       tree.add(forStmt)
-    # of nnkStrLit, nnkInfix:
-    #   tree.add(newAddCall("children", newCall("initText", node)))
     of nnkStmtList:
       for child in node.children:
         handleAnyNode(tree, child)
-    # of nnkDotExpr:
-    #   tree.add(quote do:
-    #     block:
-    #       let n = `node`
-    #       when n is string:
-    #         node.children.add(initText(n))
-    #       when n is (string, string):
-    #         node.attrs.add(`node`)
-    #       when n is Element:
-    #         node.children.add(n))
     of nnkAsgn, nnkExprEqExpr:
       tree.add(newAddCall("attrs", nnkTupleConstr.newTree(newStrLitNode(node[0].strVal), newStrLitNode(node[1].strVal))))
     of nnkTupleConstr:
@@ -188,7 +176,6 @@ macro el*(tag: string, args: varargs[untyped]): Element =
             node.children.add(n)
           else:
             node.attrs.add(($n, "")))
-      # tree.add(newAddCall("attrs", nnkTupleConstr.newTree(newStrLitNode(node.strVal), newStrLitNode(""))))
     of nnkCommand:
       var newNode = nnkCall.newTree()
       copyChildrenTo(node, newNode)
@@ -199,9 +186,6 @@ macro el*(tag: string, args: varargs[untyped]): Element =
         nnkInt16Lit, nnkUInt16Lit, nnkInt32Lit, nnkUInt32Lit,
         nnkInt64Lit, nnkUInt64Lit:
       tree.add(newAddCall("children", newCall("initText", newCall("$", node))))
-    # of nnkPar:
-    #   debugEcho treeRepr node[0]
-    #   handleAnyNode(tree, node[0])
     else:
       if ($node.kind).endsWith("Expr"):
         tree.add(quote do:
