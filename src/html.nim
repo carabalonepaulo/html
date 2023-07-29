@@ -168,14 +168,18 @@ macro el*(tag: string, args: varargs[untyped]): Element =
         else:
           newNode.add(branch.kind.newTree(branch[0], wrap(branch[1])))
       tree.add(newNode)
+    of nnkSym:
+      let key = $node
+      tree.add(quote do: node.attrs.add((`key`, "")))
     of nnkIdent:
+      let identName = $node
       tree.add(quote do:
         block:
           var n = `node`
           when compiles(n):
             node.children.add(n)
           else:
-            node.attrs.add(($n, "")))
+            node.attrs.add((`identName`, "")))
     of nnkCommand:
       var newNode = nnkCall.newTree()
       copyChildrenTo(node, newNode)
