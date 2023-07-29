@@ -1,4 +1,4 @@
-import std/[macros, options, strutils, streams]
+import std/[macros, options, strutils, streams, typetraits]
 
 
 const DefaultBufferSize = 2048
@@ -108,6 +108,16 @@ converter toString*(doc: Doc): string =
   result = stream.readAll()
 
 
+template text*(value: untyped): Element =
+  initText(value)
+
+template selected*(): untyped {.dirty.} =
+  node.attrs.add(("selected", ""))
+
+template attr*(key: string, value: string): untyped {.dirty.} =
+  node.attrs.add((key, value))
+
+
 macro el*(tag: string, args: varargs[untyped]): Element =
   var rootStmtList = nnkStmtList.newTree(nnkVarSection.newTree(
     nnkIdentDefs.newTree(
@@ -142,12 +152,22 @@ macro el*(tag: string, args: varargs[untyped]): Element =
         forStmt.add(node[i])
       forStmt.add(wrap(node.last))
       tree.add(forStmt)
-    of nnkStrLit, nnkInfix:
-      tree.add(newAddCall("children", newCall("initText", node)))
+    # of nnkStrLit, nnkInfix:
+    #   tree.add(newAddCall("children", newCall("initText", node)))
     of nnkStmtList:
       for child in node.children:
         handleAnyNode(tree, child)
-    of nnkExprEqExpr, nnkAsgn:
+    # of nnkDotExpr:
+    #   tree.add(quote do:
+    #     block:
+    #       let n = `node`
+    #       when n is string:
+    #         node.children.add(initText(n))
+    #       when n is (string, string):
+    #         node.attrs.add(`node`)
+    #       when n is Element:
+    #         node.children.add(n))
+    of nnkAsgn, nnkExprEqExpr:
       tree.add(newAddCall("attrs", nnkTupleConstr.newTree(newStrLitNode(node[0].strVal), newStrLitNode(node[1].strVal))))
     of nnkTupleConstr:
       assert node.len == 2, "Invalid custom attribute constructor."
@@ -160,8 +180,42 @@ macro el*(tag: string, args: varargs[untyped]): Element =
         else:
           newNode.add(branch.kind.newTree(branch[0], wrap(branch[1])))
       tree.add(newNode)
+    of nnkIdent:
+      tree.add(quote do:
+        block:
+          var n = `node`
+          when compiles(n):
+            node.children.add(n)
+          else:
+            node.attrs.add(($n, "")))
+      # tree.add(newAddCall("attrs", nnkTupleConstr.newTree(newStrLitNode(node.strVal), newStrLitNode(""))))
+    of nnkCommand:
+      var newNode = nnkCall.newTree()
+      copyChildrenTo(node, newNode)
+      tree.add(newAddCall("children", newNode))
+    of nnkStrLit, nnkRStrLit, nnkTripleStrLit, nnkInfix:
+        tree.add(newAddCall("children", newCall("initText", node)))
+    of nnkIntLit, nnkUIntLit, nnkInt8Lit, nnkUInt8Lit,
+        nnkInt16Lit, nnkUInt16Lit, nnkInt32Lit, nnkUInt32Lit,
+        nnkInt64Lit, nnkUInt64Lit:
+      tree.add(newAddCall("children", newCall("initText", newCall("$", node))))
+    # of nnkPar:
+    #   debugEcho treeRepr node[0]
+    #   handleAnyNode(tree, node[0])
     else:
-      echo node.kind
+      if ($node.kind).endsWith("Expr"):
+        tree.add(quote do:
+          block addThing:
+            let n = `node`
+            when n is (string, string):
+              node.attrs.add(`node`)
+            when n is Element:
+              node.children.add(n)
+            when (n is string) or ((n is not Element) and (n is not (string, string)) and compiles($n)):
+              node.children.add(initText(n)))
+      else:
+        echo treeRepr node
+        echo "Unhandled node: " & $node.kind
 
   for node in args.children:
     handleAnyNode(rootStmtList, node)
