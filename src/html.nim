@@ -5,6 +5,13 @@ const DefaultBufferSize = 2048
 
 
 type
+  IntegerTypes = int | uint |
+                 int8 | uint8 |
+                 int16 | uint16 |
+                 int32 | uint32 |
+                 int64 | uint64 |
+                 float32 | float64
+
   Attribute* = tuple[key: string, value: string]
 
   ElementKind* = enum
@@ -29,6 +36,22 @@ proc initElement*(tag: string): Element =
 
 proc initText*(value: string): Element =
   result = Element(kind: ElementKind.ekText, text: value)
+
+
+proc push*(self: var Element, value: Element) =
+  self.children.add(value)
+
+
+proc push*(self: var Element, value: string) =
+  self.children.add(initText(value))
+
+
+proc push*(self: var Element, attr: (string, string)) =
+  self.attrs.add(attr)
+
+
+proc push*(self: var Element, value: IntegerTypes) =
+  self.children.add(initText($value))
 
 
 proc write*(stream: Stream, self: Element, pretty = false, tabSize = 4, currentIdent = 0) =
@@ -108,16 +131,6 @@ converter toString*(doc: Doc): string =
   result = stream.readAll()
 
 
-template text*(value: untyped): Element =
-  initText(value)
-
-template selected*(): untyped {.dirty.} =
-  node.attrs.add(("selected", ""))
-
-template attr*(key: string, value: string): untyped {.dirty.} =
-  node.attrs.add((key, value))
-
-
 macro el*(tag: string, args: varargs[untyped]): Element =
   var rootStmtList = nnkStmtList.newTree(nnkVarSection.newTree(
     nnkIdentDefs.newTree(
@@ -144,8 +157,6 @@ macro el*(tag: string, args: varargs[untyped]): Element =
 
   proc handleAnyNode(tree: var NimNode, node: NimNode) =
     case node.kind:
-    of nnkCall, nnkStmtListExpr, nnkBlockExpr:
-      tree.add(newAddCall("children", node))
     of nnkForStmt:
       var forStmt = nnkForStmt.newTree()
       for i in 0..(node.len - 2):
@@ -159,8 +170,18 @@ macro el*(tag: string, args: varargs[untyped]): Element =
       tree.add(newAddCall("attrs", nnkTupleConstr.newTree(newStrLitNode(node[0].strVal), newStrLitNode(node[1].strVal))))
     of nnkTupleConstr:
       assert node.len == 2, "Invalid custom attribute constructor."
-      tree.add(newAddCall("attrs", node))
-    of nnkIfStmt, nnkIfExpr:
+      tree.add(quote do:
+        block tryTuple:
+          var n = `node`
+          {.warning[UnreachableCode]:off.}
+          when n is (string, string):
+            node.push(n)
+            break tryTuple
+          when compiles($n[0]) and compiles($n[1]):
+            node.push(($n[0], $n[1]))
+            break tryTuple
+          {.warning[UnreachableCode]:on.})
+    of nnkIfStmt:
       var newNode = node.kind.newTree()
       for branch in node.children:
         if branch.kind == nnkElse:
@@ -170,40 +191,20 @@ macro el*(tag: string, args: varargs[untyped]): Element =
       tree.add(newNode)
     of nnkSym:
       let key = $node
-      tree.add(quote do: node.attrs.add((`key`, "")))
+      tree.add(quote do: node.push((`key`, "")))
     of nnkIdent:
-      let identName = $node
+      let key = $node
       tree.add(quote do:
-        block:
-          var n = `node`
-          when compiles(n):
-            node.children.add(n)
-          else:
-            node.attrs.add((`identName`, "")))
+        when declared(`node`):
+          node.push(`node`)
+        else:
+          node.push((`key`, "")))
     of nnkCommand:
       var newNode = nnkCall.newTree()
       copyChildrenTo(node, newNode)
-      tree.add(newAddCall("children", newNode))
-    of nnkStrLit, nnkRStrLit, nnkTripleStrLit, nnkInfix:
-        tree.add(newAddCall("children", newCall("initText", node)))
-    of nnkIntLit, nnkUIntLit, nnkInt8Lit, nnkUInt8Lit,
-        nnkInt16Lit, nnkUInt16Lit, nnkInt32Lit, nnkUInt32Lit,
-        nnkInt64Lit, nnkUInt64Lit:
-      tree.add(newAddCall("children", newCall("initText", newCall("$", node))))
+      tree.add(quote do: node.push(`node`))
     else:
-      if ($node.kind).endsWith("Expr"):
-        tree.add(quote do:
-          block addThing:
-            let n = `node`
-            when n is (string, string):
-              node.attrs.add(`node`)
-            when n is Element:
-              node.children.add(n)
-            when (n is string) or ((n is not Element) and (n is not (string, string)) and compiles($n)):
-              node.children.add(initText(n)))
-      else:
-        echo treeRepr node
-        echo "Unhandled node: " & $node.kind
+      tree.add(quote do: node.push(`node`))
 
   for node in args.children:
     handleAnyNode(rootStmtList, node)
