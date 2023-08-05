@@ -54,6 +54,14 @@ proc push*(self: var Element, value: IntegerTypes) =
   self.children.add(initText($value))
 
 
+proc push*(self: var Element, value: openArray[(string, string)]) =
+  self.attrs.add(value)
+
+
+proc push*(self: var Element, value: openArray[Element]) =
+  self.children.add(value)
+
+
 proc write*(stream: Stream, self: Element, pretty = false, tabSize = 4, currentIdent = 0) =
   case self.kind:
   of ElementKind.ekText:
@@ -167,7 +175,7 @@ macro el*(tag: string, args: varargs[untyped]): Element =
       for child in node.children:
         handleAnyNode(tree, child)
     of nnkAsgn, nnkExprEqExpr:
-      tree.add(newAddCall("attrs", nnkTupleConstr.newTree(newStrLitNode(node[0].strVal), newStrLitNode(node[1].strVal))))
+      tree.add(newAddCall("attrs", nnkTupleConstr.newTree(newStrLitNode(node[0].strVal), node[1])))
     of nnkTupleConstr:
       assert node.len == 2, "Invalid custom attribute constructor."
       tree.add(quote do:
