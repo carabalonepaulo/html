@@ -3,8 +3,8 @@ import unittest
 import std/strutils
 
 test "attributes":
-  var elem = el("div", a="10", b="20"):
-    c="30"
+  var elem = el("div", a = "10", b = "20"):
+    c = "30"
 
   check elem.attrs.len == 3
   check elem.attrs[0] == ("a", "10")
@@ -64,8 +64,8 @@ test "push literal string":
   check elem.children[0].text == "foo"
 
 test "push ident":
-  var first = el("div", pos="0")
-  var second = el("div", pos="1", first)
+  var first = el("div", pos = "0")
+  var second = el("div", pos = "1", first)
 
   check second.children.len == 1
   check second.children[0].attrs[0] == ("pos", "0")
@@ -85,7 +85,7 @@ test "push infix":
 
 test "for stmt":
   var elem = li:
-    for i in 0..<3:
+    for i in 0 ..< 3:
       ul "text #" & $i
 
   check elem.children.len == 3
@@ -94,10 +94,7 @@ test "for stmt":
 test "if stmt":
   var trigger = true
   var elem = el("div"):
-    if trigger:
-      "foo"
-    else:
-      "bar"
+    if trigger: "foo" else: "bar"
 
   check elem.children.len == 1
   check elem.children[0] == "foo"
@@ -109,16 +106,16 @@ test "no value attribute":
   check elem.attrs[0] == ("selected", "")
 
 test "compatibility":
-  type
-    Item = object
-      id: int
-      name: string
+  type Item = object
+    id: int
+    name: string
 
   let items = @[Item(id: 0, name: "Item A")]
 
   let itemsComponent = el("div", class = "row mt-4"):
     el "div", class = "col d-flex flex-column":
-      h5: "Items"
+      h5:
+        "Items"
       el "ul", class = "list-group border rounded":
         for item in items:
           el "li", class = "list-group-item d-flex justify-content-between":
@@ -128,7 +125,7 @@ test "compatibility":
               style = "width: 50px"
               button "edit"
 
-  let doc = html(lang="en"):
+  let doc = html(lang = "en"):
     head:
       link:
         href = "https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css"
@@ -136,11 +133,23 @@ test "compatibility":
         crossorigin = "anonymous"
       link:
         rel = "stylesheet"
-        href = "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+        href =
+          "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
       title "title name"
     body ("data-bs-theme", "dark"):
       el "div", class = "container", itemsComponent
       script:
-        src = "https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"
+        src =
+          "https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"
         crossorigin = "anonymous"
       script src = "https://unpkg.com/htmx.org@1.9.4"
+
+test "text with especial chars":
+  let elem = p("<super text here>")
+  check elem.toString() == "<p>&lt;super text here&gt;</p>"
+
+test "attribute with especial chars":
+  let attr_value = """hel"lo"io"""
+  let escaped = "hel&quot;lo&quot;io"
+  let elem = el("div", ("name", attr_value))
+  check elem.toString() == "<div name=\"" & escaped & "\"></div>"
