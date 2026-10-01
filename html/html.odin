@@ -1,7 +1,10 @@
 package html
 
+import "base:runtime"
 import "core:bytes"
 import "core:strings"
+
+INITIAL_CAPACITY :: #config(HTML_BUFFER_INITIAL_CAPACITY, 256)
 
 Escape :: struct {
 	char:    byte,
@@ -22,11 +25,6 @@ Doc :: struct {
 	attr_has_value: bool,
 }
 
-Element :: struct {
-	doc: ^Doc,
-	tag: string,
-}
-
 Attributes :: union {
 	[][2]string,
 	proc(doc: ^Doc, ud: rawptr),
@@ -35,7 +33,7 @@ Attributes :: union {
 Attrs :: [][2]string
 
 begin_doc :: proc() -> (doc: Doc) {
-	strings.builder_init(&doc.sb, 64)
+	strings.builder_init(&doc.sb, INITIAL_CAPACITY, allocator = runtime.default_allocator())
 	strings.write_string(&doc.sb, "<!DOCTYPE html>")
 	return
 }
@@ -45,6 +43,15 @@ end_doc :: proc(doc: Doc) {}
 @(deferred_out = end_doc)
 doc :: proc() -> Doc {
 	return begin_doc()
+}
+
+to_string :: proc(doc: ^Doc) -> string {
+	return strings.to_string(doc.sb)
+}
+
+destroy :: proc(doc: ^Doc) {
+	strings.builder_destroy(&doc.sb)
+	doc^ = {}
 }
 
 begin_el :: proc(

@@ -2,13 +2,15 @@ package main
 
 import "../html"
 import "core:fmt"
-import "core:strings"
 
 main :: proc() {
 	is_world := true
 
 	doc := html.doc()
-	defer fmt.print(strings.to_string(doc.sb))
+	defer {
+		fmt.print(html.to_string(&doc))
+		html.destroy(&doc)
+	}
 
 	if html.html(&doc, html.Attrs{{"lang", "en"}}) {
 		if html.head(&doc) {
