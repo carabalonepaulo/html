@@ -45,6 +45,10 @@ main :: proc() {
 			if card(&doc, "Title") {
 				if html.span(&doc) do html.text(&doc, "hello from card")
 			}
+
+			comp(&doc, "Component", nil, proc(doc: ^html.Doc, ud: rawptr) {
+				html.text(doc, "hello from component")
+			})
 		}
 	}
 }
@@ -61,5 +65,11 @@ end_card :: proc(doc: ^html.Doc, title: string) {
 card :: proc(doc: ^html.Doc, title: string) -> bool {
 	begin_card(doc)
 	return true
+}
+
+comp :: proc(doc: ^html.Doc, title: string, ud: rawptr, fn: proc(doc: ^html.Doc, ud: rawptr)) {
+	html.div(doc)
+	if html.h1(doc) do html.text(doc, title)
+	if html.div(doc, html.Attrs{{"id", "container"}}) do fn(doc, ud)
 }
 

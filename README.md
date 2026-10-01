@@ -24,7 +24,7 @@ html.span(&doc, proc(doc: ^html.Doc, ud: rawptr) {
 // <span foo="bar" class="hello"></span>
 ```
 
-Using a proc to define attributes has some benefits: you can write optional attributes and compose an attribute value dynamically, which is usefull for conditional classes.
+Using a proc to define attributes has some benefits: you can write optional attributes and compose an attribute value dynamically, which is useful for conditional classes.
 
 ### Custom Components
 
@@ -48,4 +48,18 @@ card :: proc(doc: ^html.Doc, title: string) -> bool {
 if card(&doc, "Title") {
 	if html.span(&doc) do html.text(&doc, "hello from card")
 }
+```
+
+```odin
+comp :: proc(doc: ^html.Doc, title: string, ud: rawptr, fn: proc(doc: ^html.Doc, ud: rawptr)) {
+	html.div(doc)
+	if html.h1(doc) do html.text(doc, title)
+	if html.div(doc, html.Attrs{{"id", "container"}}) do fn(doc, ud)
+}
+```
+
+```odin
+comp(&doc, "Component", nil, proc(doc: ^html.Doc, ud: rawptr) {
+	html.text(doc, "hello from component")
+})
 ```
