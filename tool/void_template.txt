@@ -1,0 +1,3 @@
+{{tag}} :: #force_inline proc(doc: ^Doc, attrs: Attributes = nil, ud: rawptr = nil) {
+	begin_el(doc, "{{tag}}", attrs, close = true)
+}

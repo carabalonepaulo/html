@@ -1,0 +1,13 @@
+begin_{{tag}} :: #force_inline proc(doc: ^Doc, attrs: Attributes = nil, ud: rawptr = nil) {
+	begin_el(doc, "{{tag}}", attrs, ud, false)
+}
+
+end_{{tag}} :: #force_inline proc(doc: ^Doc, attrs: Attributes = nil, ud: rawptr = nil) {
+	end_el(doc, "{{tag}}", attrs, ud)
+}
+
+@(deferred_in = end_{{tag}})
+{{tag}} :: #force_inline proc(doc: ^Doc, attrs: Attributes = nil, ud: rawptr = nil) -> bool {
+	begin_{{tag}}(doc, attrs, ud)
+	return true
+}
